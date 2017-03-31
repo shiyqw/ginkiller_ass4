@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <sstream>
+#include <iostream>
 #include <glog/logging.h>
 
 #include "server/messages.h"
@@ -30,27 +31,17 @@ WorkQueue<Request_msg> tellmenow_queue;
 // response.
 static void execute_compareprimes(const Request_msg& req, Response_msg& resp) {
 
-    int params[4];
-    int counts[4];
-
+    int n, index;
     // grab the four arguments defining the two ranges
-    params[0] = atoi(req.get_arg("n1").c_str());
-    params[1] = atoi(req.get_arg("n2").c_str());
-    params[2] = atoi(req.get_arg("n3").c_str());
-    params[3] = atoi(req.get_arg("n4").c_str());
+    n = atoi(req.get_arg("n").c_str());
+    index = atoi(req.get_arg("index").c_str());
 
-    for (int i=0; i<4; i++) {
-      Request_msg dummy_req(0);
-      Response_msg dummy_resp(0);
-      create_computeprimes_req(dummy_req, params[i]);
-      execute_work(dummy_req, dummy_resp);
-      counts[i] = atoi(dummy_resp.get_response().c_str());
-    }
-
-    if (counts[1]-counts[0] > counts[3]-counts[2])
-      resp.set_response("There are more primes in first range.");
-    else
-      resp.set_response("There are more primes in second range.");
+    Request_msg dummy_req(0);
+    Response_msg dummy_resp(0);
+    create_computeprimes_req(dummy_req, n);
+    execute_work(dummy_req, dummy_resp);
+    string count = dummy_resp.get_response();
+    resp.set_response(to_string(index) + " " + count);
 }
 
 void * mytellmenow(void * dump) {

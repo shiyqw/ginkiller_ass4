@@ -5,6 +5,7 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include <vector>
 
 #include "server/messages.h"
 #include "server/master.h"
@@ -29,6 +30,11 @@ static struct Master_state {
   deque<Request_msg> waitlist;
   map<int, Client_handle> clientMap;
   map<int, Request_msg> requestMap;
+
+  // structure for countprime
+  map<int, int> respNumMap;
+  map<int, vector<int> > countListMap;
+
   map<string, Response_msg> cache;
 
   Worker_handle my_worker;
@@ -114,13 +120,33 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
   int tag = resp.get_tag();
   Client_handle client = mstate.clientMap[tag];
   Request_msg req = mstate.requestMap[tag];
-  mstate.clientMap.erase(tag);
-  mstate.requestMap.erase(tag);
+
 
   if(!req.get_arg("cmd").compare("compareprimes")) {
-      // compare primes 
-      ;
+      string result = resp.get_response();
+      int index = result[0]-'0';
+      int count = atoi(result.substr(2).c_str());
+      ++mstate.respNumMap[tag];
+      mstate.countListMap[tag][index] = count;
+      if(mstate.respNumMap[tag] == 4) {
+          Response_msg new_resp;
+          int c1 = mstate.countListMap[tag][1] - mstate.countListMap[tag][0];
+          int c2 = mstate.countListMap[tag][3] - mstate.countListMap[tag][2];
+          if (c1 > c2) {
+              new_resp.set_response("There are more primes in first range.");
+          } else {
+              new_resp.set_response("There are more primes in second range.");
+          }
+          send_client_response(client, new_resp);
+          mstate.countListMap.erase(tag);
+          mstate.respNumMap.erase(tag);
+          mstate.clientMap.erase(tag);
+          mstate.requestMap.erase(tag);
+      }
+
   } else {
+      mstate.clientMap.erase(tag);
+      mstate.requestMap.erase(tag);
       send_client_response(client, resp);
       // update cache
       string key = get_key(req);
@@ -176,7 +202,23 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
 
   string cmd = client_req.get_arg("cmd");
   if (!cmd.compare("compareprimes")) {
-      ;
+      int n[4];
+      n[0] = atoi(worker_req.get_arg("n1").c_str());
+      n[1] = atoi(worker_req.get_arg("n2").c_str());
+      n[2] = atoi(worker_req.get_arg("n3").c_str());
+      n[3] = atoi(worker_req.get_arg("n4").c_str());
+      // initialize the sub-requests that have been completed
+      //mstate.requestsMap[tag]->counts[4] = 0;
+      for(int i = 0; i < 4; i++) {
+          Request_msg new_req(tag);
+          new_req.set_arg("cmd", "compareprimes");
+          new_req.set_arg("n", to_string(n[i]));
+          new_req.set_arg("index", to_string(i));
+          mstate.waitlist.push_back(new_req);
+      }
+      mstate.respNumMap[tag] = 0;
+      mstate.countListMap[tag] = vector<int>(4);
+
   } else if (!cmd.compare("tellmenow")) {
     //cout << "get tellmenow" << endl;
     send_request_to_worker(mstate.my_worker, worker_req);
@@ -190,6 +232,7 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
     Request_msg new_worker_request = mstate.waitlist.front();
     mstate.waitlist.pop_front();
     send_request_to_worker(mstate.my_worker, new_worker_request);
+    mstate.num_pending_client_requests++;
     return;
   }
       
