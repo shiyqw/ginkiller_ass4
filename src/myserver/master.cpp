@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <queue>
 #include <map>
+#include <string>
+#include <iostream>
 
 #include "server/messages.h"
 #include "server/master.h"
@@ -26,6 +28,8 @@ static struct Master_state {
   
   queue<Request_msg> waitlist;
   map<int, Client_handle> clientMap;
+  map<int, Request_msg> requestMap;
+  map<string, Response_msg> cache;
 
   Worker_handle my_worker;
   Client_handle waiting_client;
@@ -75,19 +79,52 @@ void handle_new_worker_online(Worker_handle worker_handle, int tag) {
   }
 }
 
+string get_key(Request_msg & req) {
+    string cmd = req.get_arg("cmd");
+    if(!cmd.compare("countprimes")) {
+        return string("N#") + req.get_arg("n");
+    }
+
+    if(!cmd.compare("418wisdom")) {
+        return string("4#") + req.get_arg("x");
+    } 
+
+    if(!cmd.compare("compareprimes")) {
+        return string("M#") + req.get_arg("n1") + ',' +
+                              req.get_arg("n2") + ',' +
+                              req.get_arg("n3") + ',' +
+                              req.get_arg("n4");
+    }
+
+    return "";
+}
+
 void handle_worker_response(Worker_handle worker_handle, const Response_msg& resp) {
 
   // Master node has received a response from one of its workers.
   // Here we directly return this response to the client.
 
   DLOG(INFO) << "Master received a response from a worker: [" << resp.get_tag() << ":" << resp.get_response() << "]" << std::endl;
+  //cout << "Master received a response from a worker: [" << resp.get_tag() << ":" << resp.get_response() << "]" << std::endl;
 
   int tag = resp.get_tag();
   Client_handle client = mstate.clientMap[tag];
+  Request_msg req = mstate.requestMap[tag];
   mstate.clientMap.erase(tag);
-  send_client_response(client, resp);
+  mstate.requestMap.erase(tag);
 
-  if( mstate.waitlist.size() == 0) {
+  if(!req.get_arg("cmd").compare("compareprimes")) {
+      // compare primes 
+      ;
+  } else {
+      send_client_response(client, resp);
+      // update cache
+      string key = get_key(req);
+      mstate.cache[key] = resp;
+  }
+
+
+  if(mstate.waitlist.size() == 0) {
       mstate.num_pending_client_requests--;
   } else {
       Request_msg new_worker_request = mstate.waitlist.front();
@@ -95,6 +132,8 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
       send_request_to_worker(worker_handle, new_worker_request);
   }
 }
+
+
 
 void handle_client_request(Client_handle client_handle, const Request_msg& client_req) {
 
@@ -109,13 +148,27 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
     send_client_response(client_handle, resp);
     return;
   }
-
+  
   // The provided starter code cannot handle multiple pending client
   // requests.  The server returns an error message, and the checker
   // will mark the response as "incorrect"
   int tag = mstate.next_tag++;
   Request_msg worker_req(tag, client_req);
   mstate.clientMap[tag] = client_handle;
+  mstate.requestMap[tag] = worker_req;
+
+  string key = get_key(worker_req);
+  //cout << tag << " has " << key << endl;
+
+  if (mstate.cache.find(key) != mstate.cache.end()) {
+
+      //cout << tag << " hit!" << endl;
+
+      Response_msg resp = mstate.cache.find(key)->second;
+      send_client_response(client_handle, resp);
+      return;
+  }
+
 
   if (mstate.num_pending_client_requests == pthread_num) {
     //resp.set_response("Oh no! This server cannot handle multiple outstanding requests!");
