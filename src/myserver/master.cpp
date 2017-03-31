@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <queue>
+#include <deque>
 #include <map>
 #include <string>
 #include <iostream>
@@ -26,7 +26,7 @@ static struct Master_state {
   int num_pending_client_requests;
   int next_tag;
   
-  queue<Request_msg> waitlist;
+  deque<Request_msg> waitlist;
   map<int, Client_handle> clientMap;
   map<int, Request_msg> requestMap;
   map<string, Response_msg> cache;
@@ -128,7 +128,7 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
       mstate.num_pending_client_requests--;
   } else {
       Request_msg new_worker_request = mstate.waitlist.front();
-      mstate.waitlist.pop();
+      mstate.waitlist.pop_front();
       send_request_to_worker(worker_handle, new_worker_request);
   }
 }
@@ -170,15 +170,21 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
   }
 
 
-  if (mstate.num_pending_client_requests == pthread_num) {
-    //resp.set_response("Oh no! This server cannot handle multiple outstanding requests!");
-    mstate.waitlist.push(worker_req);
-    //send_client_response(client_handle, resp);
+  if (!key.compare("compareprimes")) {
+      ;
+  } else {
+    mstate.waitlist.push_back(worker_req);
+  }
+
+
+  if (mstate.num_pending_client_requests != pthread_num) {
+    Request_msg new_worker_request = mstate.waitlist.front();
+    mstate.waitlist.pop_front();
+    send_request_to_worker(mstate.my_worker, new_worker_request);
     return;
   }
       
-  mstate.num_pending_client_requests++;
-  send_request_to_worker(mstate.my_worker, worker_req);
+  return;
 
   // Fire off the request to the worker.  Eventually the worker will
   // respond, and your 'handle_worker_response' event handler will be
