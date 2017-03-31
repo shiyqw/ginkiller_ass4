@@ -96,6 +96,10 @@ string get_key(Request_msg & req) {
                               req.get_arg("n4");
     }
 
+    if(!cmd.compare("tellmenow")) {
+        return string("T#") + req.get_arg("x");
+    }
+
     return "";
 }
 
@@ -170,8 +174,13 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
   }
 
 
-  if (!key.compare("compareprimes")) {
+  string cmd = client_req.get_arg("cmd");
+  if (!cmd.compare("compareprimes")) {
       ;
+  } else if (!cmd.compare("tellmenow")) {
+    //cout << "get tellmenow" << endl;
+    send_request_to_worker(mstate.my_worker, worker_req);
+    return;
   } else {
     mstate.waitlist.push_back(worker_req);
   }

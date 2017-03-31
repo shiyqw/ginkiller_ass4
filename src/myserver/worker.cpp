@@ -23,6 +23,7 @@ static void create_computeprimes_req(Request_msg& req, int n) {
 }
 
 WorkQueue<Request_msg> work_queue;
+WorkQueue<Request_msg> tellmenow_queue;
 
 // Implements logic required by compareprimes command via multiple
 // calls to execute_work.  This function fills in the appropriate
@@ -52,6 +53,25 @@ static void execute_compareprimes(const Request_msg& req, Response_msg& resp) {
       resp.set_response("There are more primes in second range.");
 }
 
+void * mytellmenow(void * dump) {
+  while(true) {
+      Request_msg req = tellmenow_queue.get_work();
+      Response_msg resp(req.get_tag());
+
+      DLOG(INFO) << "Worker got request: [" << req.get_tag() << ":" << req.get_request_string() << "]\n";
+
+      double startTime = CycleTimer::currentSeconds();
+
+      execute_work(req, resp);
+
+      double dt = CycleTimer::currentSeconds() - startTime;
+
+      DLOG(INFO) << "Worker completed work in " << (1000.f * dt) << " ms (" << req.get_tag()  << ")\n";
+
+      worker_send_response(resp);
+  }
+  return NULL;
+}
 
 void * myexecute(void * dump) {
   while(true) {
@@ -91,9 +111,15 @@ void worker_node_init(const Request_msg& params) {
   for(int i = 0; i < pthread_num; ++i) {
       pthread_create(&threads[i], NULL, myexecute, NULL);
   }
+  pthread_t tellmenow_thread;
+  pthread_create(&tellmenow_thread, NULL, mytellmenow, NULL);
 
 }
 
 void worker_handle_request(const Request_msg& req) {
-    work_queue.put_work(req);
+    if (req.get_arg("cmd").compare("tellmenow") == 0) {
+        tellmenow_queue.put_work(req);
+    } else {
+        work_queue.put_work(req);
+    }
 }
