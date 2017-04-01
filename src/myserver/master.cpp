@@ -106,6 +106,10 @@ string get_key(Request_msg & req) {
         return string("T#") + req.get_arg("x");
     }
 
+    if(!cmd.compare("projectidea")) {
+        return string("P#") + req.get_arg("x");
+    }
+
     return "";
 }
 
