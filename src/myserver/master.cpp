@@ -19,7 +19,7 @@ struct Worker_state{
     bool is_alive;
     bool claim_closed;
     int cpu_reqnum;
-    int mem_reqnum;
+    int other_reqnum;
     int cache_reqnum;
     int idle_period;
 };
@@ -117,7 +117,14 @@ int mincpu_wh(){
             }
         }
     }
-    if(mincpu == -1)cout<<"Error: get mincpu with -1"<< endl;
+    if(mincpu == -1){
+        cout<<"Error: get mincpu with -1"<< endl;
+        for(int i = 0; i < 4;i++){
+        if( (mstate.ws[i].is_alive == true )&& ( mstate.ws[i].claim_closed == false) ){
+            return i;
+            }
+        }
+    }
     return mincpu;
 }
 int mincache_wh(){
@@ -132,7 +139,14 @@ int mincache_wh(){
             }
         }
     }
-     if(mincache == -1)cout<<"Error: get mincpu with -1"<< endl;
+     if(mincache == -1){
+        cout<<"Error: get mincpu with -1"<< endl;
+         for(int i = 0; i < 4;i++){
+        if( (mstate.ws[i].is_alive == true )&& ( mstate.ws[i].claim_closed == false) ){
+            return i;
+            }
+        }
+    }
     return mincache;
 }
 
@@ -155,7 +169,7 @@ void reset_ws(int index){
     mstate.ws[index].is_alive = true;
     mstate.ws[index].claim_closed = false;
     mstate.ws[index].cpu_reqnum = 0;
-    mstate.ws[index].mem_reqnum = 0;
+    mstate.ws[index].other_reqnum = 0;
     mstate.ws[index].cache_reqnum = 0;
     mstate.ws[index].idle_period = 0;
 }
@@ -227,7 +241,7 @@ void send_request_to_lb2(const Request_msg& req){
         mstate.randit = next_wh(mstate.randit);
         cout<< "ELB send work: [" <<  mstate.randit << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.randit ], req);
-
+        mstate.ws[ mstate.randit ].other_reqnum++;
     }
 }
 void send_request_to_lb(const Request_msg& req){
@@ -251,7 +265,7 @@ void send_request_to_lb(const Request_msg& req){
         mstate.randit = next_wh(mstate.randit);
         cout<< "ELB send work: [" <<  mstate.randit << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.randit ], req);
-
+        mstate.ws[ mstate.randit ].other_reqnum++;
     }
 }
 void handle_worker_response(Worker_handle worker_handle, const Response_msg& resp) {
@@ -324,6 +338,9 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
         cout<< "worker "<<goal<<" completed a cache task"<<endl;
         mstate.ws[goal].cache_reqnum --;
     }else{
+        int goal = get_index_wh(worker_handle);
+        cout<< "worker "<<goal<<" completed an other task"<<endl;
+        mstate.ws[goal].other_reqnum --;
     }
   if(mstate.waitlist.size() == 0) {
       mstate.num_pending_client_requests--;
@@ -445,7 +462,7 @@ void handle_tick() {
 
         /*
         if(mstate.ws[i].claim_closed == false){//it is working!
-              if(mstate.ws[i].cpu_reqnum+ mstate.ws[i].mem_reqnum+mstate.ws[i].cache_reqnum == 0){
+              if(mstate.ws[i].cpu_reqnum+ mstate.ws[i].other_reqnum+mstate.ws[i].cache_reqnum == 0){
                 mstate.ws[i].idle_period +=1;
                 if( mstate.ws[i].idle_period>=3){//scale in
                     mstate.ws[i].claim_closed = true;
@@ -479,14 +496,16 @@ void handle_tick() {
     }
     mstate.idle_cycle = 0;
  }else{
-    mstate.idle_cycle +=1;
-    if(mstate.idle_cycle >=2 && mstate.cur_num_workers >1){
-        mstate.idle_cycle = 0;
-         for(int i = 0; i < 4;i++){
-            if(mstate.ws[i].is_alive && !mstate.ws[i].claim_closed){
-                mstate.ws[i].claim_closed = true;
-                cout<<endl<< "warning! scale in needed! " << avg_cache << "  "<<avg_cpu <<endl<<endl;
-                break;
+     if(avg_cpu <pthread_num * 0.8 && avg_cache <0.7){
+        mstate.idle_cycle +=1;
+        if(mstate.idle_cycle >=2 && mstate.cur_num_workers >1){
+            mstate.idle_cycle = 0;
+             for(int i = 0; i < 4;i++){
+                if(mstate.ws[i].is_alive && !mstate.ws[i].claim_closed){
+                    mstate.ws[i].claim_closed = true;
+                    cout<<endl<< "warning! scale in needed! " << avg_cache << "  "<<avg_cpu <<endl<<endl;
+                    break;
+                }
             }
         }
     }
@@ -494,14 +513,14 @@ void handle_tick() {
    //can also kill here, the check is the same as it is in handle_worker_response()
     for(int i  = 0;i < 4;i++){
         if(mstate.ws[i].is_alive && mstate.ws[i].claim_closed){
-            if(mstate.ws[i].cpu_reqnum == 0 && mstate.ws[i].cache_reqnum == 0)
+            if(mstate.ws[i].cpu_reqnum == 0 && mstate.ws[i].cache_reqnum == 0 && mstate.ws[i].other_reqnum == 0){
                 kill_worker_node(mstate.my_worker[i]);
                 mstate.ws[i].is_alive = false;
                 mstate.ws[i].claim_closed = false;
                 mstate.cur_num_workers--;
                 cout<<endl<< "warning! scale in completed at 2! "<<mstate.my_worker[i]<<" killed " << i << " and now  "<<mstate.cur_num_workers <<endl<<endl;
                 mstate.my_worker[i] = NULL;
-
+            }
         }
     }
 }
