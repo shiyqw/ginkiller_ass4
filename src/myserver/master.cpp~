@@ -117,7 +117,6 @@ int mincpu_wh(){
             }
         }
     }
-    if(mincpu == -1)cout<<"Error: get mincpu with -1"<< endl;
     return mincpu;
 }
 int mincache_wh(){
@@ -132,7 +131,6 @@ int mincache_wh(){
             }
         }
     }
-     if(mincache == -1)cout<<"Error: get mincpu with -1"<< endl;
     return mincache;
 }
 
@@ -140,15 +138,12 @@ int get_index_t(int tag){
     for(int i = 0; i < 4;i++){
         if(mstate.wtag[i] == tag)return i;
     }
-    cout<< "Error! get index -1 with tag "<<tag<<endl;
     return -1;
 }
 int get_index_wh(Worker_handle worker_handle){
     for(int i = 0; i < 4;i++){
         if(mstate.my_worker[i] == worker_handle)return i;
     }
-    cout<< "Error! get index -1 with worker handle "<<worker_handle<<endl;
-
     return -1;
 }
 void reset_ws(int index){
@@ -213,13 +208,13 @@ void send_request_to_lb2(const Request_msg& req){
     if (cmd.compare("418wisdom") == 0||cmd.compare("countprimes") == 0) {
         // compute intensive
         mstate.cpuit = next_wh(mstate.cpuit);
-        cout<< "ELB send workto "<<mstate.cpuit <<" : [" <<  mstate.my_worker[ mstate.cpuit ] << ":" << cmd << "]" << std::endl;
+        cout<< "ELB send work: [" <<  mstate.my_worker[ mstate.cpuit ] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.cpuit ], req);
         mstate.ws[mstate.cpuit].cpu_reqnum ++;
     }else if(cmd.compare("projectidea") == 0){
         //cache intensive
         mstate.cacheit = next_wh(mstate.cacheit);
-        cout<< "ELB send work "<<mstate.cacheit <<" : [" << mstate.my_worker[ mstate.cacheit ] << ":" << cmd << "]" << std::endl;
+        cout<< "ELB send work: [" << mstate.my_worker[ mstate.cacheit ] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.cacheit ], req);
         mstate.ws[mstate.cacheit].cache_reqnum ++;
     }else{
@@ -237,13 +232,13 @@ void send_request_to_lb(const Request_msg& req){
     if (cmd.compare("418wisdom") == 0||cmd.compare("countprimes") == 0) {
         // compute intensive
         goal = mincpu_wh();
-        cout<< "ELB send work to "<<goal <<" : [" <<  mstate.my_worker[ goal] << ":" << cmd << "]" << std::endl;
+        cout<< "ELB send work: [" <<  mstate.my_worker[ goal] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ goal], req);
         mstate.ws[goal].cpu_reqnum ++;
     }else if(cmd.compare("projectidea") == 0){
         //cache intensive
         goal = mincache_wh();
-        cout<< "ELB send work "<<goal <<": [" << mstate.my_worker[goal] << ":" << cmd << "]" << std::endl;
+        cout<< "ELB send work: [" << mstate.my_worker[goal] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ goal ], req);
         mstate.ws[goal].cache_reqnum ++;
     }else{
@@ -298,10 +293,9 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
       mstate.cache[key] = resp;
   }
   //TODO: check the claimed_closed here
-/*
   for(int i  = 0;i < 4;i++){
         if(mstate.ws[i].is_alive && mstate.ws[i].claim_closed){
-            if(mstate.ws[i].cpu_reqnum == 0 && mstate.ws[i].cache_reqnum == 0)
+            if(mstate.ws[i].cpu_reqnum+ mstate.ws[i].mem_reqnum+mstate.ws[i].cache_reqnum == 0)
                 kill_worker_node(mstate.my_worker[i]);
                 mstate.ws[i].is_alive = false;
                 mstate.ws[i].claim_closed = false;
@@ -311,17 +305,15 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
                 cout<<endl<< "warning! scale in completed! " << i << " and now  "<<mstate.cur_num_workers <<endl<<endl;
 
         }
-  }*/
+  }
     std::string cmd = req.get_arg("cmd");
     if (cmd.compare("418wisdom") == 0||cmd.compare("countprimes") == 0) {
         // compute intensive
         int goal = get_index_wh(worker_handle);
-        cout<< "worker "<<goal<<" completed a cpu task"<<endl;
         mstate.ws[goal].cpu_reqnum --;
     }else if(cmd.compare("projectidea") == 0){
         //cache intensive
         int goal = get_index_wh(worker_handle);
-        cout<< "worker "<<goal<<" completed a cache task"<<endl;
         mstate.ws[goal].cache_reqnum --;
     }else{
     }

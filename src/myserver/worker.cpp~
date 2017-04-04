@@ -13,7 +13,7 @@
 
 using namespace std;
 
-const int pthread_num = 25;
+const int pthread_num = 18;
 
 // Generate a valid 'countprimes' request dictionary from integer 'n'
 static void create_computeprimes_req(Request_msg& req, int n) {
