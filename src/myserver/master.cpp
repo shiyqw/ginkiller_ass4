@@ -304,9 +304,9 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
       }
 
   } else {
+      send_client_response(client, resp);
       mstate.clientMap.erase(tag);
       mstate.requestMap.erase(tag);
-      send_client_response(client, resp);
       // update cache
       string key = get_key(req);
       mstate.cache[key] = resp;
@@ -358,6 +358,7 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
 
   DLOG(INFO) << "Received request: " << client_req.get_request_string() << std::endl;
 
+
   // You can assume that traces end with this special message.  It
   // exists because it might be useful for debugging to dump
   // information about the entire run here: statistics, etc.
@@ -376,6 +377,15 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
   mstate.clientMap[tag] = client_handle;
   mstate.requestMap[tag] = worker_req;
 
+  string cmd = client_req.get_arg("cmd");
+
+  if (!cmd.compare("projectidea") ) {
+    //cout << "get tellmenow" << endl;
+    //send_request_to_worker(mstate.my_worker, worker_req);
+    send_request_to_lb(worker_req);
+    return;
+  }
+
   string key = get_key(worker_req);
   //cout << tag << " has " << key << endl;
 
@@ -389,7 +399,6 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
   }
 
 
-  string cmd = client_req.get_arg("cmd");
   if (!cmd.compare("compareprimes")) {
       int n[4];
       n[0] = atoi(worker_req.get_arg("n1").c_str());

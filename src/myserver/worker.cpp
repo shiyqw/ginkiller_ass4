@@ -88,17 +88,17 @@ void * myprojectidea(void * dump) {
       Request_msg req = projectidea_queue.get_work();
       Response_msg resp(req.get_tag());
 
-      DLOG(INFO) << "Worker got request: [" << req.get_tag() << ":" << req.get_request_string() << "]\n";
+      //DLOG(INFO) << "Worker got request: [" << req.get_tag() << ":" << req.get_request_string() << "]\n";
 
       //cout << "Worker got project request: [" << req.get_tag() << ":" << req.get_request_string() << "]\n";
-      double startTime = CycleTimer::currentSeconds();
+      //double startTime = CycleTimer::currentSeconds();
 
       execute_work(req, resp);
 
-      double dt = CycleTimer::currentSeconds() - startTime;
+      //double dt = CycleTimer::currentSeconds() - startTime;
 
       //cout << "Worker completed project work in " << (1000.f * dt) << " ms (" << req.get_tag()  << ")\n";
-      DLOG(INFO) << "Worker completed work in " << (1000.f * dt) << " ms (" << req.get_tag()  << ")\n";
+      //DLOG(INFO) << "Worker completed work in " << (1000.f * dt) << " ms (" << req.get_tag()  << ")\n";
 
       worker_send_response(resp);
   }
@@ -145,9 +145,9 @@ void worker_node_init(const Request_msg& params) {
   }
   pthread_t tellmenow_thread;
   pthread_t projectidea_thread;
-  //pthread_t projectidea_thread2;
+  pthread_t projectidea_thread2;
   pthread_create(&projectidea_thread, NULL, myprojectidea, (void *) 0);
-  //pthread_create(&projectidea_thread2, NULL, myprojectidea, (void *) 1);
+  pthread_create(&projectidea_thread2, NULL, myprojectidea, (void *) 1);
   pthread_create(&tellmenow_thread, NULL, mytellmenow, NULL);
 
 }
