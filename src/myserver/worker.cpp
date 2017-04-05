@@ -1,4 +1,4 @@
-
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -13,7 +13,7 @@
 
 using namespace std;
 
-const int pthread_num = 25;
+const int pthread_num = 46;
 
 // Generate a valid 'countprimes' request dictionary from integer 'n'
 static void create_computeprimes_req(Request_msg& req, int n) {
@@ -65,19 +65,39 @@ void * mytellmenow(void * dump) {
   return NULL;
 }
 
+
 void * myprojectidea(void * dump) {
+
+  //unsigned int core_id = * (unsigned int *) dump;
+  //int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+  //cout << "num cores " << num_cores << endl;
+
+  //cpu_set_t cpuset;
+  //CPU_ZERO(&cpuset);
+  //CPU_SET(core_id, &cpuset);
+
+  //pthread_t current_thread = pthread_self();    
+  //pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
+
+   //unsigned long mask = 2*core_id; /* process switches to processor 1 now */
+   //if (sched_setaffinity(0, sizeof(cpuset), &cpuset) <0) {
+       //perror("sched_setaffinity");
+   //}
+
   while(true) {
       Request_msg req = projectidea_queue.get_work();
       Response_msg resp(req.get_tag());
 
       DLOG(INFO) << "Worker got request: [" << req.get_tag() << ":" << req.get_request_string() << "]\n";
 
+      //cout << "Worker got project request: [" << req.get_tag() << ":" << req.get_request_string() << "]\n";
       double startTime = CycleTimer::currentSeconds();
 
       execute_work(req, resp);
 
       double dt = CycleTimer::currentSeconds() - startTime;
 
+      //cout << "Worker completed project work in " << (1000.f * dt) << " ms (" << req.get_tag()  << ")\n";
       DLOG(INFO) << "Worker completed work in " << (1000.f * dt) << " ms (" << req.get_tag()  << ")\n";
 
       worker_send_response(resp);
@@ -125,7 +145,9 @@ void worker_node_init(const Request_msg& params) {
   }
   pthread_t tellmenow_thread;
   pthread_t projectidea_thread;
-  pthread_create(&projectidea_thread, NULL, myprojectidea, NULL);
+  //pthread_t projectidea_thread2;
+  pthread_create(&projectidea_thread, NULL, myprojectidea, (void *) 0);
+  //pthread_create(&projectidea_thread2, NULL, myprojectidea, (void *) 1);
   pthread_create(&tellmenow_thread, NULL, mytellmenow, NULL);
 
 }

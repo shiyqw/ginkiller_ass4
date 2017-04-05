@@ -13,7 +13,7 @@
 
 using namespace std;
 
-const int pthread_num = 24;
+const int pthread_num = 46;
 
 struct Worker_state{
     bool is_alive;
@@ -92,11 +92,11 @@ void master_node_init(int max_workers, int& tick_period) {
 int find_free(){
     for(int i = 0; i < 4;i++){
         if(mstate.ws[i].is_alive == false){
-            cout<< "ws "<<i <<" is not active"<<endl;
+            ////cout<< "ws "<<i <<" is not active"<<endl;
             return i;
         }
     }
-    cout<<"all ws are occupied"<<endl;
+    //cout<<"all ws are occupied"<<endl;
     return -1;
 }
 int next_wh(int cur){
@@ -118,7 +118,7 @@ int mincpu_wh(){
         }
     }
     if(mincpu == -1){
-        cout<<"Error: get mincpu with -1"<< endl;
+        //cout<<"Error: get mincpu with -1"<< endl;
         for(int i = 0; i < 4;i++){
         if( (mstate.ws[i].is_alive == true )&& ( mstate.ws[i].claim_closed == false) ){
             return i;
@@ -140,7 +140,7 @@ int mincache_wh(){
         }
     }
      if(mincache == -1){
-        cout<<"Error: get mincpu with -1"<< endl;
+        //cout<<"Error: get mincpu with -1"<< endl;
          for(int i = 0; i < 4;i++){
         if( (mstate.ws[i].is_alive == true )&& ( mstate.ws[i].claim_closed == false) ){
             return i;
@@ -154,14 +154,14 @@ int get_index_t(int tag){
     for(int i = 0; i < 4;i++){
         if(mstate.wtag[i] == tag)return i;
     }
-    cout<< "Error! get index -1 with tag "<<tag<<endl;
+    //cout<< "Error! get index -1 with tag "<<tag<<endl;
     return -1;
 }
 int get_index_wh(Worker_handle worker_handle){
     for(int i = 0; i < 4;i++){
         if(mstate.my_worker[i] == worker_handle)return i;
     }
-    cout<< "Error! get index -1 with worker handle "<<worker_handle<<endl;
+    //cout<< "Error! get index -1 with worker handle "<<worker_handle<<endl;
 
     return -1;
 }
@@ -183,18 +183,18 @@ void handle_new_worker_online(Worker_handle worker_handle, int tag) {
 
   reset_ws(index);
   mstate.cur_num_workers++;
-  cout<< "scale out! Handle worker online: [" <<worker_handle<<"  "<< index << ":" << tag << "] now num worker " << mstate.cur_num_workers<<std::endl;
+  //cout<< "scale out! Handle worker online: [" <<worker_handle<<"  "<< index << ":" << tag << "] now num worker " << mstate.cur_num_workers<<std::endl;
   // Now that a worker is booted, let the system know the server is
   // ready to begin handling client requests.  The test harness will
   // now start its timers and start hitting your server with requests.
   if (mstate.server_ready == false) {
     server_init_complete();
-     cout<< "init server"<<endl;
+     //cout<< "init server"<<endl;
     mstate.server_ready = true;
   }
 }
 
-string get_key(Request_msg & req) {
+string get_key(const Request_msg & req) {
     string cmd = req.get_arg("cmd");
     if(!cmd.compare("countprimes")) {
         return string("N#") + req.get_arg("n");
@@ -227,19 +227,19 @@ void send_request_to_lb2(const Request_msg& req){
     if (cmd.compare("418wisdom") == 0||cmd.compare("countprimes") == 0) {
         // compute intensive
         mstate.cpuit = next_wh(mstate.cpuit);
-        cout<< "ELB send workto "<<mstate.cpuit <<" : [" <<  mstate.my_worker[ mstate.cpuit ] << ":" << cmd << "]" << std::endl;
+        //cout<< "ELB send workto "<<mstate.cpuit <<" : [" <<  mstate.my_worker[ mstate.cpuit ] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.cpuit ], req);
         mstate.ws[mstate.cpuit].cpu_reqnum ++;
     }else if(cmd.compare("projectidea") == 0){
         //cache intensive
         mstate.cacheit = next_wh(mstate.cacheit);
-        cout<< "ELB send work "<<mstate.cacheit <<" : [" << mstate.my_worker[ mstate.cacheit ] << ":" << cmd << "]" << std::endl;
+        //cout<< "ELB send work "<<mstate.cacheit <<" : [" << mstate.my_worker[ mstate.cacheit ] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.cacheit ], req);
         mstate.ws[mstate.cacheit].cache_reqnum ++;
     }else{
         //do it randomly tellmenow
         mstate.randit = next_wh(mstate.randit);
-        cout<< "ELB send work: [" <<  mstate.randit << ":" << cmd << "]" << std::endl;
+        //cout<< "ELB send work: [" <<  mstate.randit << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.randit ], req);
         mstate.ws[ mstate.randit ].other_reqnum++;
     }
@@ -251,19 +251,19 @@ void send_request_to_lb(const Request_msg& req){
     if (cmd.compare("418wisdom") == 0||cmd.compare("countprimes") == 0) {
         // compute intensive
         goal = mincpu_wh();
-        cout<< "ELB send work to "<<goal <<" : [" <<  mstate.my_worker[ goal] << ":" << cmd << "]" << std::endl;
+        //cout<< "ELB send work to "<<goal <<" : [" <<  mstate.my_worker[ goal] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ goal], req);
         mstate.ws[goal].cpu_reqnum ++;
     }else if(cmd.compare("projectidea") == 0){
         //cache intensive
         goal = mincache_wh();
-        cout<< "ELB send work "<<goal <<": [" << mstate.my_worker[goal] << ":" << cmd << "]" << std::endl;
+        //cout<< "ELB send work "<<goal <<": [" << mstate.my_worker[goal] << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ goal ], req);
         mstate.ws[goal].cache_reqnum ++;
     }else{
         //do it randomly tellmenow
         mstate.randit = next_wh(mstate.randit);
-        cout<< "ELB send work: [" <<  mstate.randit << ":" << cmd << "]" << std::endl;
+        //cout<< "ELB send work: [" <<  mstate.randit << ":" << cmd << "]" << std::endl;
         send_request_to_worker(mstate.my_worker[ mstate.randit ], req);
         mstate.ws[ mstate.randit ].other_reqnum++;
     }
@@ -274,7 +274,7 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
   // Here we directly return this response to the client.
 
   DLOG(INFO) << "Master received a response from a worker: [" << resp.get_tag() << ":" << resp.get_response() << "]" << std::endl;
-  //cout << "Master received a response from a worker: [" << resp.get_tag() << ":" << resp.get_response() << "]" << std::endl;
+  ////cout << "Master received a response from a worker: [" << resp.get_tag() << ":" << resp.get_response() << "]" << std::endl;
 
   int tag = resp.get_tag();
   Client_handle client = mstate.clientMap[tag];
@@ -322,24 +322,24 @@ void handle_worker_response(Worker_handle worker_handle, const Response_msg& res
                 mstate.cur_num_workers--;
                 mstate.my_worker[i] = NULL;
 
-                cout<<endl<< "warning! scale in completed! " << i << " and now  "<<mstate.cur_num_workers <<endl<<endl;
+                //cout<<endl<< "warning! scale in completed! " << i << " and now  "<<mstate.cur_num_workers <<endl<<endl;
 
         }
   }*/
     std::string cmd = req.get_arg("cmd");
-    if (cmd.compare("418wisdom") == 0||cmd.compare("countprimes") == 0) {
+    if (cmd.compare("418wisdom") == 0||cmd.compare("countprimes") == 0 || cmd.compare("compareprimes") == 0 ) {
         // compute intensive
         int goal = get_index_wh(worker_handle);
-        cout<< "worker "<<goal<<" completed a cpu task"<<endl;
+        //cout<< "worker "<<goal<<" completed a cpu task"<<endl;
         mstate.ws[goal].cpu_reqnum --;
     }else if(cmd.compare("projectidea") == 0){
         //cache intensive
         int goal = get_index_wh(worker_handle);
-        cout<< "worker "<<goal<<" completed a cache task"<<endl;
+        //cout<< "worker "<<goal<<" completed a cache task"<<endl;
         mstate.ws[goal].cache_reqnum --;
     }else{
         int goal = get_index_wh(worker_handle);
-        cout<< "worker "<<goal<<" completed an other task"<<endl;
+        //cout<< "worker "<<goal<<" completed an other task"<<endl;
         mstate.ws[goal].other_reqnum --;
     }
   if(mstate.waitlist.size() == 0) {
@@ -408,11 +408,15 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
       mstate.respNumMap[tag] = 0;
       mstate.countListMap[tag] = vector<int>(4);
 
-  } else if (!cmd.compare("tellmenow")) {
+  } else if (!cmd.compare("tellmenow") || !cmd.compare("projectidea") ) {
     //cout << "get tellmenow" << endl;
     //send_request_to_worker(mstate.my_worker, worker_req);
     send_request_to_lb(worker_req);
     return;
+  //} else if (!cmd.compare("projectidea") /*|| !cmd.compare("projectidea") */) {
+    //cout << "get tellmenow" << endl;
+    //send_request_to_worker(mstate.my_worker, worker_req);
+    //mstate.waitlist.push_front(worker_req);
   } else {
     mstate.waitlist.push_back(worker_req);
   }
@@ -455,7 +459,7 @@ void handle_tick() {
  int total_cache =0;
 
  for(int i = 0; i < 4;i++){
-     cout<<mstate.my_worker[i]<< i<<" :  alive "<<mstate.ws[i].is_alive<<" closed "<<mstate.ws[i].claim_closed<<" cpu "<<mstate.ws[i].cpu_reqnum<<" cache " << mstate.ws[i].cache_reqnum <<endl;
+     //cout<<mstate.my_worker[i]<< i<<" :  alive "<<mstate.ws[i].is_alive<<" closed "<<mstate.ws[i].claim_closed<<" cpu "<<mstate.ws[i].cpu_reqnum<<" cache " << mstate.ws[i].cache_reqnum <<endl;
     if(mstate.ws[i].is_alive){
         total_cpu += mstate.ws[i].cpu_reqnum;
         total_cache +=mstate.ws[i].cache_reqnum;
@@ -478,7 +482,7 @@ void handle_tick() {
  float avg_cache = (float)total_cache/mstate.cur_num_workers;
  if(avg_cpu >pthread_num * 1.4|| avg_cache >1.4){//scale out
  //if(mstate.waitlist.size()>pthread_num /2){
-     cout<<endl<< "warning! scale out needed! " << avg_cache << "  "<<avg_cpu <<"  "<< mstate.cur_num_workers<<" "<<mstate.max_num_workers<<endl<<endl;
+     //cout<<endl<< "warning! scale out needed! " << avg_cache << "  "<<avg_cpu <<"  "<< mstate.cur_num_workers<<" "<<mstate.max_num_workers<<endl<<endl;
      for(int i  = 0;i < 4;i++){
         if(mstate.ws[i].is_alive && mstate.ws[i].claim_closed){//we don't want to close want we claimed to be closed any more
             mstate.ws[i].claim_closed = false;
@@ -487,7 +491,7 @@ void handle_tick() {
     if(mstate.cur_num_workers< mstate.max_num_workers){// add one machine
           int tag = random();
           int index = find_free();
-          cout<<"found a free slot" <<index <<"for "<< tag <<endl;
+          //cout<<"found a free slot" <<index <<"for "<< tag <<endl;
           Request_msg req(tag);
           req.set_arg("name", "my worker "+to_string(index) );
           request_new_worker_node(req);
@@ -503,7 +507,7 @@ void handle_tick() {
              for(int i = 0; i < 4;i++){
                 if(mstate.ws[i].is_alive && !mstate.ws[i].claim_closed){
                     mstate.ws[i].claim_closed = true;
-                    cout<<endl<< "warning! scale in needed! " << avg_cache << "  "<<avg_cpu <<endl<<endl;
+                    //cout<<endl<< "warning! scale in needed! " << avg_cache << "  "<<avg_cpu <<endl<<endl;
                     break;
                 }
             }
@@ -518,7 +522,7 @@ void handle_tick() {
                 mstate.ws[i].is_alive = false;
                 mstate.ws[i].claim_closed = false;
                 mstate.cur_num_workers--;
-                cout<<endl<< "warning! scale in completed at 2! "<<mstate.my_worker[i]<<" killed " << i << " and now  "<<mstate.cur_num_workers <<endl<<endl;
+                //cout<<endl<< "warning! scale in completed at 2! "<<mstate.my_worker[i]<<" killed " << i << " and now  "<<mstate.cur_num_workers <<endl<<endl;
                 mstate.my_worker[i] = NULL;
             }
         }
