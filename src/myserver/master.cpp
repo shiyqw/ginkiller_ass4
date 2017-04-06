@@ -13,7 +13,7 @@
 
 using namespace std;
 
-const int pthread_num = 24;
+const int pthread_num = 22;
 
 struct Worker_state{
     bool is_alive;
@@ -406,7 +406,7 @@ void handle_client_request(Client_handle client_handle, const Request_msg& clien
       mstate.respNumMap[tag] = 0;
       mstate.countListMap[tag] = vector<int>(4);
 
-  } else if (!cmd.compare("tellmenow")) {
+  } else if (!cmd.compare("tellmenow") || !cmd.compare("projectidea")) {
     //cout << "get tellmenow" << endl;
     //send_request_to_worker(mstate.my_worker, worker_req);
     send_request_to_lb(worker_req);

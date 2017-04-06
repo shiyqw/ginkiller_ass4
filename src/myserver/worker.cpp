@@ -12,7 +12,7 @@
 
 using namespace std;
 
-const int pthread_num = 24;
+const int pthread_num = 22;
 
 // Generate a valid 'countprimes' request dictionary from integer 'n'
 static void create_computeprimes_req(Request_msg& req, int n) {
@@ -52,6 +52,7 @@ void * myprojectidea(void * dump) {
       DLOG(INFO) << "Worker got request: [" << req.get_tag() << ":" << req.get_request_string() << "]\n";
 
       double startTime = CycleTimer::currentSeconds();
+      //cout << "Worker got project " << req.get_tag() << ":" << req.get_request_string() << "at" << startTime  << "]\n";
 
       execute_work(req, resp);
 
@@ -59,6 +60,7 @@ void * myprojectidea(void * dump) {
 
       DLOG(INFO) << "Worker completed work in " << (1000.f * dt) << " ms (" << req.get_tag()  << ")\n";
 
+      //cout << "Worker end project " << req.get_tag() << ":" << req.get_request_string() << "at" << startTime+dt << "]\n";
       worker_send_response(resp);
   }
   return NULL;
@@ -122,6 +124,8 @@ void worker_node_init(const Request_msg& params) {
   for(int i = 0; i < pthread_num; ++i) {
       pthread_create(&threads[i], NULL, myexecute, NULL);
   }
+  pthread_t projectidea_thread2;
+  pthread_create(&projectidea_thread2, NULL, myprojectidea, NULL);
   pthread_t projectidea_thread;
   pthread_create(&projectidea_thread, NULL, myprojectidea, NULL);
   pthread_t tellmenow_thread;
